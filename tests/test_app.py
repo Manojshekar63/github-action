@@ -3,28 +3,18 @@ import os
 import sys
 from unittest.mock import MagicMock, patch
 
-# ─── Add root path ONCE at top level (fixes all ModuleNotFoundError) ───
+# ─── Add root path ───
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-# ─── Mock ALL heavy modules BEFORE importing app ───
+# ─── Mock heavy modules BEFORE importing helpers ───
 MOCK_MODULES = {
-    "pyttsx3": MagicMock(),
-    "streamlit": MagicMock(),
-    "streamlit_mic_recorder": MagicMock(),
-    "langchain_ollama": MagicMock(),
-    "langchain_huggingface": MagicMock(),
     "langchain_community": MagicMock(),
     "langchain_community.document_loaders": MagicMock(),
     "langchain_community.vectorstores": MagicMock(),
-    "langchain.chains": MagicMock(),
-    "faiss": MagicMock(),
-    "sentence_transformers": MagicMock(),
-    "unstructured": MagicMock(),
 }
 
-# Apply all mocks before any test runs
 for mod_name, mock in MOCK_MODULES.items():
     sys.modules[mod_name] = mock
 
@@ -44,18 +34,17 @@ def test_text_splitter():
 # 2. Test PDF extraction
 # ─────────────────────────────────────────
 def test_extract_text_from_pdf():
-    # Remove cached app module to reimport cleanly
-    if "app" in sys.modules:
-        del sys.modules["app"]
+    if "helpers" in sys.modules:
+        del sys.modules["helpers"]
 
-    from app import extract_text_from_pdf
+    from helpers import extract_text_from_pdf
 
     mock_file = MagicMock()
     mock_file.read.return_value = b"%PDF-1.4 fake content"
 
-    with patch("app.UnstructuredPDFLoader") as mock_loader, \
-         patch("app.tempfile.NamedTemporaryFile"), \
-         patch("app.os.unlink"):
+    with patch("helpers.UnstructuredPDFLoader") as mock_loader, \
+         patch("helpers.tempfile.NamedTemporaryFile"), \
+         patch("helpers.os.unlink"):
 
         mock_loader.return_value.load.return_value = [
             MagicMock(page_content="Sample PDF text")
@@ -63,22 +52,23 @@ def test_extract_text_from_pdf():
 
         docs = extract_text_from_pdf(mock_file)
         assert docs is not None
+        assert len(docs) == 1
 
 # ─────────────────────────────────────────
 # 3. Test DOCX extraction
 # ─────────────────────────────────────────
 def test_extract_text_from_docx():
-    if "app" in sys.modules:
-        del sys.modules["app"]
+    if "helpers" in sys.modules:
+        del sys.modules["helpers"]
 
-    from app import extract_text_from_docx
+    from helpers import extract_text_from_docx
 
     mock_file = MagicMock()
     mock_file.read.return_value = b"fake docx content"
 
-    with patch("app.Docx2txtLoader") as mock_loader, \
-         patch("app.tempfile.NamedTemporaryFile"), \
-         patch("app.os.unlink"):
+    with patch("helpers.Docx2txtLoader") as mock_loader, \
+         patch("helpers.tempfile.NamedTemporaryFile"), \
+         patch("helpers.os.unlink"):
 
         mock_loader.return_value.load.return_value = [
             MagicMock(page_content="Sample DOCX text")
@@ -86,47 +76,56 @@ def test_extract_text_from_docx():
 
         docs = extract_text_from_docx(mock_file)
         assert docs is not None
+        assert len(docs) == 1
 
 # ─────────────────────────────────────────
 # 4. Test stop speech flag
 # ─────────────────────────────────────────
 def test_stop_speech_flag():
-    if "app" in sys.modules:
-        del sys.modules["app"]
+    if "helpers" in sys.modules:
+        del sys.modules["helpers"]
 
-    import app
+    import helpers
 
-    app.stop_speaking = False
-    app.stop_speech()
-    assert app.stop_speaking == True
+    helpers.stop_speaking = False
+    helpers.stop_speech()
+    assert helpers.stop_speaking == True
 
 # ─────────────────────────────────────────
 # 5. Test reset speech flag
 # ─────────────────────────────────────────
 def test_reset_speech_flag():
-    if "app" in sys.modules:
-        del sys.modules["app"]
+    if "helpers" in sys.modules:
+        del sys.modules["helpers"]
 
-    import app
+    import helpers
 
-    app.stop_speaking = True
-    app.reset_speech()
-    assert app.stop_speaking == False
+    helpers.stop_speaking = True
+    helpers.reset_speech()
+    assert helpers.stop_speaking == False
 
 # ─────────────────────────────────────────
-# 6. Test answer extraction (already passing ✅)
+# 6. Test answer extraction
 # ─────────────────────────────────────────
 def test_answer_extraction_from_result():
-    result = {"result": "This is the answer"}
-    answer = result.get("result") or result.get("answer") or ""
-    assert answer == "This is the answer"
+    if "helpers" in sys.modules:
+        del sys.modules["helpers"]
+
+    from helpers import extract_answer
+
+    assert extract_answer({"result": "This is the answer"}) == "This is the answer"
 
 def test_answer_extraction_fallback():
-    result = {"answer": "Fallback answer"}
-    answer = result.get("result") or result.get("answer") or ""
-    assert answer == "Fallback answer"
+    from helpers import extract_answer
+
+    assert extract_answer({"answer": "Fallback answer"}) == "Fallback answer"
 
 def test_answer_extraction_empty():
-    result = {}
-    answer = result.get("result") or result.get("answer") or ""
-    assert answer == ""
+    from helpers import extract_answer
+
+    assert extract_answer({}) == ""
+
+def test_answer_extraction_string():
+    from helpers import extract_answer
+
+    assert extract_answer("plain string") == "plain string"
