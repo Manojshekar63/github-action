@@ -5,11 +5,9 @@ langchain-huggingface
 langchain-ollama
 faiss-cpu
 sentence-transformers
-unstructured[pdf]
-pdf2image
-docx2txt
 pyttsx3
 streamlit-mic-recorder
-transformers
-torch
-huggingface-hub
+docx2txt
+unstructured
+pytest
+pytest-mock
